@@ -19,7 +19,6 @@ type Config struct {
 	}
 
 	Redis struct {
-		Dumpfile  string
 		Host      string
 		Port      int
 		SlaveOnly bool
