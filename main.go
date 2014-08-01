@@ -80,7 +80,9 @@ func main() {
 	td.Connect()
 	td.Authenticate()
 
-	r, err := goredis.Dial(&goredis.DialConfig{Address: "127.0.0.1:6379"})
+	connstring := fmt.Sprintf("%s:%d", conf.Redis.Host, conf.Redis.Port)
+
+	r, err := goredis.Dial(&goredis.DialConfig{Address: connstring})
 	info := r.GetAllInfo()
 	doBackup := false
 
@@ -89,22 +91,23 @@ func main() {
 			doBackup = true
 		}
 	}
-	println("Should do backup:", doBackup)
-	rdb, err := r.ExecuteCommand("SYNC")
-	if err != nil {
-		fmt.Println("Error on sync:", err)
-	}
-	rdb_data, err := rdb.BytesValue()
-	if err != nil {
-		fmt.Println("Error on sync:", err)
-	}
-	//origin, _ := os.Open(conf.Redis.Dumpfile)
-	//fi, _ := origin.Stat()
-	if int64(len(rdb_data)) >= conf.Main.Maxfilesize {
-		log.Fatal("RDB Data is too large, aborting")
-	}
-	datasize := float64(len(rdb_data)) / 1024.0
-	log.Printf("Origin data is %.4f Kb\n", float64(datasize))
+	if doBackup {
+		rdb, err := r.ExecuteCommand("SYNC")
+		if err != nil {
+			fmt.Println("Error on sync:", err)
+		}
+		rdb_data, err := rdb.BytesValue()
+		if err != nil {
+			fmt.Println("Error on sync:", err)
+		}
+		if int64(len(rdb_data)) >= conf.Main.Maxfilesize {
+			log.Fatal("RDB Data is too large, aborting")
+		}
+		datasize := float64(len(rdb_data)) / 1024.0
+		log.Printf("Origin data is %.4f Kb\n", float64(datasize))
 
-	td.Upload(rdb_data)
+		td.Upload(rdb_data)
+	} else {
+		log.Fatal("No suitable Redis servers found to do backup from")
+	}
 }
