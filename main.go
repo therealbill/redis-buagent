@@ -35,6 +35,9 @@ type Config struct {
 		Apikey        string
 		Containername string
 	}
+	Localfile struct {
+		Directory string
+	}
 }
 
 func getDriver(config Config) drivers.Driver {
@@ -45,7 +48,6 @@ func getDriver(config Config) drivers.Driver {
 		mydriver.Username = config.Rackspacecf.Username
 		mydriver.Apikey = config.Rackspacecf.Apikey
 		mydriver.Authurl = "https://auth.api.rackspacecloud.com/v1.0"
-		mydriver.Origin = config.Redis.Dumpfile
 		mydriver.Layout = config.Main.DestinationFormat
 		mydriver.Containername = config.Rackspacecf.Containername
 		return mydriver
@@ -55,9 +57,15 @@ func getDriver(config Config) drivers.Driver {
 		mydriver.Name = config.Main.Driver
 		mydriver.Username = config.Amazons3.Username
 		mydriver.Apikey = config.Amazons3.Apikey
-		mydriver.Origin = config.Redis.Dumpfile
 		mydriver.Layout = config.Main.DestinationFormat
 		mydriver.Containername = config.Amazons3.Containername
+		return mydriver
+
+	case "localfile":
+		mydriver := new(drivers.LocalFileDriver)
+		mydriver.Name = config.Main.Driver
+		mydriver.Layout = config.Main.DestinationFormat
+		mydriver.Containername = config.Localfile.Directory
 		return mydriver
 	}
 
@@ -89,6 +97,8 @@ func main() {
 		if info.Replication.Role == "slave" {
 			doBackup = true
 		}
+	} else {
+		doBackup = true
 	}
 	if doBackup {
 		rdb, err := r.ExecuteCommand("SYNC")
