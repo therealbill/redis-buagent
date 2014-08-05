@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"code.google.com/p/gcfg"
-	"github.com/therealbill/goredis"
+	client "github.com/therealbill/libredis/client"
 	drivers "github.com/therealbill/redis-buagent/drivers"
 )
 
@@ -22,6 +22,7 @@ type Config struct {
 		Host      string
 		Port      int
 		SlaveOnly bool
+		AuthToken string
 	}
 
 	Rackspacecf struct {
@@ -88,9 +89,10 @@ func main() {
 	td.Authenticate()
 
 	connstring := fmt.Sprintf("%s:%d", conf.Redis.Host, conf.Redis.Port)
+	targetConf := client.DialConfig{Address: connstring, Password: conf.Redis.AuthToken}
 
-	r, err := goredis.Dial(&goredis.DialConfig{Address: connstring})
-	info := r.GetAllInfo()
+	r, err := client.DialWithConfig(&targetConf)
+	info, _ := r.Info()
 	doBackup := false
 
 	if conf.Redis.SlaveOnly {
