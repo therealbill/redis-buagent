@@ -13,6 +13,7 @@ type LocalFileDriver struct {
 	Name          string
 	Layout        string
 	Containername string
+	Logger        *log.Logger
 }
 
 func (d *LocalFileDriver) Connect() bool {

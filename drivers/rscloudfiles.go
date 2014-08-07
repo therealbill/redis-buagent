@@ -16,6 +16,7 @@ type CloudFilesDriver struct {
 	Origin        string
 	Containername string
 	Connection    swift.Connection
+	Logger        *log.Logger
 }
 
 func (d *CloudFilesDriver) Connect() bool {

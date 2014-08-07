@@ -16,6 +16,7 @@ type AmazonS3Driver struct {
 	Origin        string
 	Containername string
 	Connection    *s3.S3
+	Logger        *log.Logger
 }
 
 func (d *AmazonS3Driver) Connect() bool {

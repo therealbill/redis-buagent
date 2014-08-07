@@ -13,6 +13,7 @@ type MissingDriver struct {
 	Apikey     string
 	Authurl    string
 	Connection swift.Connection
+	Logger     *log.Logger
 }
 
 func (d *MissingDriver) Connect() bool {
