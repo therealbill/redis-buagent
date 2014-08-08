@@ -16,34 +16,35 @@ type AmazonS3Driver struct {
 	Origin        string
 	Containername string
 	Connection    *s3.S3
+	Logger        *log.Logger
 }
 
 func (d *AmazonS3Driver) Connect() bool {
-	log.Println("AmazonS3 connection call ")
+	d.Logger.Println("AmazonS3 connection call ")
 	return true
 }
 
 func (d *AmazonS3Driver) Authenticate() bool {
-	log.Print("Authenticating")
+	d.Logger.Print("Authenticating")
 	return true
 }
 
 func (d *AmazonS3Driver) Upload(rdb []byte) bool {
-	log.Println("Upload called on:", d.Name)
+	d.Logger.Println("Upload called on:", d.Name)
 	// create an object in the container
 	now := time.Now().Local()
 	var remotename string
 	remotename = now.Format(d.Layout)
-	log.Println("Saving to", remotename)
+	d.Logger.Println("Saving to", remotename)
 	auth := aws.Auth{AccessKey: d.Username, SecretKey: d.Apikey}
 	s := s3.New(auth, aws.USEast)
 	bucket := s.Bucket(d.Containername)
-	log.Print("Putting object")
+	d.Logger.Print("Putting object")
 
 	err := bucket.Put(remotename, rdb, "text/plain", s3.BucketOwnerFull)
 	if err != nil {
 		print("Error:", err)
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
 	return false
 }

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"code.google.com/p/gcfg"
 	client "github.com/therealbill/libredis/client"
@@ -16,6 +17,11 @@ type Config struct {
 		Driver            string
 		Maxfilesize       int64
 		DestinationFormat string
+	}
+
+	Logging struct {
+		UseStdOut bool
+		Logfile   string
 	}
 
 	Redis struct {
@@ -39,6 +45,30 @@ type Config struct {
 	Localfile struct {
 		Directory string
 	}
+}
+
+var logger *log.Logger
+var conf Config
+var configfilename string
+
+func init() {
+
+	flag.StringVar(&configfilename, "conf", "/etc/redis/buagent.cfg", "Config file to use")
+	flag.Parse()
+
+	err := gcfg.ReadFileInto(&conf, configfilename)
+	if err != nil {
+		log.Printf("Unable to open config file '%s'", configfilename)
+		log.Fatal(err)
+	}
+	if conf.Logging.UseStdOut {
+		logger = log.New(os.Stdout, "redis-buagent", log.LstdFlags)
+	} else {
+		outlog, _ := os.Create(conf.Logging.Logfile)
+		logger = log.New(outlog, "redis-buagent", log.LstdFlags)
+	}
+	logger.Print("init complete")
+
 }
 
 func getDriver(config Config) drivers.Driver {
@@ -67,6 +97,7 @@ func getDriver(config Config) drivers.Driver {
 		mydriver.Name = config.Main.Driver
 		mydriver.Layout = config.Main.DestinationFormat
 		mydriver.Containername = config.Localfile.Directory
+		mydriver.Logger = logger
 		return mydriver
 	}
 
@@ -75,23 +106,20 @@ func getDriver(config Config) drivers.Driver {
 
 func main() {
 	// The main stuff happens here
-	var conf Config
-	var configfilename string
-	flag.StringVar(&configfilename, "conf", "/etc/redis/buagent.cfg", "Config file to use")
-	flag.Parse()
-
-	err := gcfg.ReadFileInto(&conf, configfilename)
-	if err != nil {
-		log.Fatal(err)
-	}
 	td := getDriver(conf)
 	td.Connect()
-	td.Authenticate()
+	canProceed := td.Authenticate()
+	if !canProceed {
+		logger.Fatal("Unable to issue commands to the destination, aborting.")
+	}
 
 	connstring := fmt.Sprintf("%s:%d", conf.Redis.Host, conf.Redis.Port)
 	targetConf := client.DialConfig{Address: connstring, Password: conf.Redis.AuthToken}
 
 	r, err := client.DialWithConfig(&targetConf)
+	if err != nil {
+		logger.Fatal("Unable to connect to Redis node, aborting.")
+	}
 	info, _ := r.Info()
 	doBackup := false
 
@@ -115,10 +143,10 @@ func main() {
 			log.Fatal("RDB Data is too large, aborting")
 		}
 		datasize := float64(len(rdb_data)) / 1024.0
-		log.Printf("Origin data is %.4f Kb\n", float64(datasize))
+		logger.Printf("Origin data is %.4f Kb\n", float64(datasize))
 
 		td.Upload(rdb_data)
 	} else {
-		log.Fatal("No suitable Redis servers found to do backup from")
+		logger.Fatal("No suitable Redis servers found to do backup from")
 	}
 }

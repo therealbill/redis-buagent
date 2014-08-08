@@ -13,6 +13,7 @@ type LocalFileDriver struct {
 	Name          string
 	Layout        string
 	Containername string
+	Logger        *log.Logger
 }
 
 func (d *LocalFileDriver) Connect() bool {
@@ -22,14 +23,21 @@ func (d *LocalFileDriver) Connect() bool {
 func (d *LocalFileDriver) Authenticate() bool {
 	dstat, err := os.Stat(d.Containername)
 
-	if err != nil || !dstat.IsDir() {
-		log.Printf("Destination doesn't exist, creating it.")
-		err = os.MkdirAll(d.Containername, 0700)
-		if err != nil {
-			log.Printf("Unable to create '%s', error:%s", d.Containername, err)
+	if err == nil {
+		if dstat.IsDir() {
+			// check for perms
+		} else {
+			d.Logger.Printf("Destination '%s' exists but is not a directory. Bailing to avoid overwriting important data.", d.Containername)
 			return false
 		}
-		log.Println("Destination created")
+	} else {
+		d.Logger.Printf("Destination doesn't exist, creating it.")
+		err = os.MkdirAll(d.Containername, 0700)
+		if err != nil {
+			d.Logger.Printf("Unable to create '%s', error:%s", d.Containername, err)
+			return false
+		}
+		d.Logger.Println("Destination created")
 	}
 
 	return true
@@ -40,10 +48,10 @@ func (d *LocalFileDriver) Upload(data []byte) bool {
 	now := time.Now().Local()
 	filename := now.Format(d.Layout)
 	destination := fmt.Sprintf("%s/%s", d.Containername, filename)
-	log.Printf("Writing to %s", destination)
+	d.Logger.Printf("Writing to %s", destination)
 	writer, err := os.Create(destination)
 	if err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
 	writer.Write(data)
 	writer.Close()

@@ -16,10 +16,11 @@ type CloudFilesDriver struct {
 	Origin        string
 	Containername string
 	Connection    swift.Connection
+	Logger        *log.Logger
 }
 
 func (d *CloudFilesDriver) Connect() bool {
-	log.Println("Connecting to cloudfiles")
+	d.Logger.Println("Connecting to cloudfiles")
 	d.Connection = swift.Connection{
 		UserName: d.Username,
 		ApiKey:   d.Apikey,
@@ -29,13 +30,13 @@ func (d *CloudFilesDriver) Connect() bool {
 
 func (d *CloudFilesDriver) Authenticate() bool {
 	if d.Connection.Authenticated() {
-		log.Println("Connection is authenticated")
+		d.Logger.Println("Connection is authenticated")
 		return true
 	}
-	log.Print("Authenticating")
+	d.Logger.Print("Authenticating")
 	d.Connection.Authenticate()
 	if d.Connection.Authenticated() {
-		log.Println("Authentication Successful")
+		d.Logger.Println("Authentication Successful")
 		return true
 	} else {
 		log.Fatal("Authentication failed")
@@ -48,7 +49,12 @@ func (d *CloudFilesDriver) Upload(data []byte) bool {
 	now := time.Now().Local()
 	var remotename string
 	remotename = now.Format(d.Layout)
-
+	d.Logger.Println("Ensuring container is present")
+	err := d.Connection.ContainerCreate(d.Containername, nil)
+	if err != nil {
+		d.Logger.Println("Create container error:", err)
+	}
+	d.Logger.Printf("Saving to '%s:%s'", d.Containername, remotename)
 	writer, err := d.Connection.ObjectCreate(d.Containername, remotename, false, "", "RedisDump", nil)
 	if err != nil {
 		log.Fatal(err)
